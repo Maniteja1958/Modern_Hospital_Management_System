@@ -1,0 +1,105 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  /* Premium Dark Mode Colors based on user image */
+  --bg-dark: #1e1e1e;
+  --bg-card: #282828;
+  --bg-card-hover: #323232;
+  --text-main: #f0f0f0;
+  --text-muted: #a0a0a0;
+  --accent-blue: #3b82f6;
+  --accent-green: #10b981;
+  --border-color: #3f3f3f;
+  
+  color: var(--text-main);
+  background-color: var(--bg-dark);
+}
+
+body {
+  margin: 0;
+  display: flex;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+#root {
+  width: 100%;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+h1, h2, h3, h4, h5 {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+  color: var(--text-main);
+}
+
+a {
+  color: var(--accent-blue);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+button {
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+/* Custom Scrollbar for sleek look */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-dark);
+}
+::-webkit-scrollbar-thumb {
+  background: #555;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #777;
+}
+
+input, select {
+  font-family: 'Inter', sans-serif;
+}
+
+/* Global UI Polish Transitions */
+button, select, input {
+  transition: all 0.2s ease-in-out;
+}
+button:hover:not(:disabled) {
+  transform: scale(1.02);
+  filter: brightness(1.1);
+}
+button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.card-hover {
+  transition: all 0.3s ease;
+}
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+  border-color: #52525b !important;
+}
+
+/* Spinner Animation for Loader2 */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.spin-slow {
+  animation: spin 1s linear infinite;
+}
