@@ -2,8 +2,8 @@ const mongoose = require('mongoose');
 
 const connectDB = async () => {
   try {
-    // We expect MONGO_URI in .env. We fallback to a local host db if not provided for dev ease.
-    const URI = process.env.MONGO_URI || 'mongodb://localhost:27017/smarthospital';
+    // Support standard MONGO_URI and Railway's default MONGO_URL injects
+    const URI = process.env.MONGO_URL || process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb://localhost:27017/smarthospital';
     const conn = await mongoose.connect(URI);
     console.log(`MongoDB Connected: ${conn.connection.host}`);
   } catch (err) {
