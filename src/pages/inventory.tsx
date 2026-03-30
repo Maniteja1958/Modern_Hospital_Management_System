@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Dialog } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { MedicineTable } from '@/components/medicine-table';
 import { MedicineForm } from '@/components/medicine-form';
 import { Medicine } from '@/types';
@@ -25,8 +25,8 @@ export const Inventory: React.FC = () => {
       updateMedicine(editingMedicine.id, medicineData);
     } else {
       const newMedicine: Medicine = {
-        id: `MED${Date.now()}`,
         ...medicineData as Medicine,
+        id: `MED${Date.now()}`,
       };
       addMedicine(newMedicine);
     }
@@ -42,17 +42,17 @@ export const Inventory: React.FC = () => {
       
       <MedicineTable onEdit={handleEdit} onAdd={handleAdd} />
       
-      <Dialog
-        isOpen={isDialogOpen}
-        onClose={() => setIsDialogOpen(false)}
-        title={editingMedicine ? 'Edit Medicine' : 'Add New Medicine'}
-        size="lg"
-      >
-        <MedicineForm
-          medicine={editingMedicine}
-          onSubmit={handleSubmit}
-          onCancel={() => setIsDialogOpen(false)}
-        />
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{editingMedicine ? 'Edit Medicine' : 'Add New Medicine'}</DialogTitle>
+          </DialogHeader>
+          <MedicineForm
+            medicine={editingMedicine}
+            onSubmit={handleSubmit}
+            onCancel={() => setIsDialogOpen(false)}
+          />
+        </DialogContent>
       </Dialog>
     </div>
   );

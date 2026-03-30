@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Activity, Mail, Lock, Loader2 } from 'lucide-react';
+import { getApiUrl } from '../lib/api';
+import { Activity, Mail, Lock, Loader2, HeartPulse } from 'lucide-react';
+import { Button } from '../components/ui/button';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -18,7 +20,7 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const res = await fetch('/api/auth/login', {
+      const res = await fetch(getApiUrl('/auth/login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -41,73 +43,107 @@ const Login = () => {
   };
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#18181b', fontFamily: "'Inter', sans-serif" }}>
-      <div style={{ width: '100%', maxWidth: '420px', padding: '40px', backgroundColor: '#27272a', borderRadius: '12px', border: '1px solid #3f3f46', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }}>
-        
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '32px' }}>
-          <div style={{ width: '56px', height: '56px', backgroundColor: '#3b82f6', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px', boxShadow: '0 10px 15px -3px rgba(59, 130, 246, 0.3)' }}>
-            <Activity color="white" size={32} />
-          </div>
-          <h2 style={{ color: '#f4f4f5', fontSize: '28px', fontWeight: '700', margin: '0 0 8px 0' }}>Welcome Back</h2>
-          <p style={{ color: '#a1a1aa', fontSize: '15px', margin: 0 }}>Sign in to the Smart Hospital System</p>
-        </div>
-
-        {error && <div style={{ padding: '12px', backgroundColor: '#ef444420', border: '1px solid #ef4444', color: '#ef4444', borderRadius: '6px', marginBottom: '20px', fontSize: '14px', textAlign: 'center' }}>{error}</div>}
-
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div className="min-h-screen grid grid-cols-1 lg:grid-cols-2 bg-background font-sans">
+      
+      {/* Left Column: Form Content */}
+      <div className="flex flex-col justify-center px-8 sm:px-16 lg:px-24 xl:px-32 h-full z-10 mx-auto w-full max-w-[600px] lg:max-w-none">
+        <div className="w-full max-w-md mx-auto">
           
-          <div style={{ position: 'relative' }}>
-            <Mail size={18} color="#a1a1aa" style={{ position: 'absolute', left: '14px', top: '14px' }} />
-            <input 
-              type="email" 
-              placeholder="Email Address" 
-              value={email} 
-              onChange={(e) => setEmail(e.target.value)} 
-              required 
-              style={{ width: '100%', padding: '12px 12px 12px 42px', backgroundColor: '#18181b', border: '1px solid #3f3f46', color: '#f4f4f5', borderRadius: '8px', fontSize: '15px', outline: 'none', transition: 'border-color 0.2s' }}
-              onFocus={(e) => e.target.style.borderColor = '#3b82f6'}
-              onBlur={(e) => e.target.style.borderColor = '#3f3f46'}
-            />
+          <div className="flex items-center gap-2 mb-12">
+            <HeartPulse className="w-8 h-8 text-primary" />
+            <span className="text-xl font-bold tracking-tight text-foreground">PharmaCare</span>
           </div>
 
-          <div style={{ position: 'relative' }}>
-            <Lock size={18} color="#a1a1aa" style={{ position: 'absolute', left: '14px', top: '14px' }} />
-            <input 
-              type="password" 
-              placeholder="Password" 
-              value={password} 
-              onChange={(e) => setPassword(e.target.value)} 
-              required 
-              style={{ width: '100%', padding: '12px 12px 12px 42px', backgroundColor: '#18181b', border: '1px solid #3f3f46', color: '#f4f4f5', borderRadius: '8px', fontSize: '15px', outline: 'none', transition: 'border-color 0.2s' }}
-              onFocus={(e) => e.target.style.borderColor = '#3b82f6'}
-              onBlur={(e) => e.target.style.borderColor = '#3f3f46'}
-            />
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-foreground mb-2">Welcome Back</h1>
+            <p className="text-muted-foreground text-sm">Please sign in to your Smart Hospital System account.</p>
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '-8px' }}>
-            <Link to="/forgot-password" style={{ color: '#3b82f6', fontSize: '13px', fontWeight: '500', textDecoration: 'none' }}>Forgot Password?</Link>
-          </div>
+          {error && (
+            <div className="mb-6 p-4 rounded-xl border border-destructive/30 bg-destructive/10 text-destructive text-sm font-medium animate-in fade-in slide-in-from-top-2">
+              {error}
+            </div>
+          )}
 
-          <button 
-            type="submit" 
-            disabled={loading}
-            style={{ width: '100%', padding: '14px', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: '600', cursor: loading ? 'not-allowed' : 'pointer', marginTop: '8px', boxShadow: '0 4px 6px -1px rgba(59, 130, 246, 0.2)', transition: 'background-color 0.2s' }}
-            onMouseOver={(e) => (e.currentTarget.style.backgroundColor = '#2563eb')}
-            onMouseOut={(e) => (e.currentTarget.style.backgroundColor = '#3b82f6')}
-          >
-            {loading ? (
-              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                <Loader2 size={18} className="spin-slow" /> Authenticating...
-              </span>
-            ) : 'Sign In'}
-          </button>
-        </form>
+          <form onSubmit={handleSubmit} className="space-y-5">
+            
+            <div className="space-y-1.5">
+              <label className="text-sm font-semibold text-foreground px-1">Email Address</label>
+              <div className="relative">
+                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                <input 
+                  type="email" 
+                  placeholder="name@example.com" 
+                  value={email} 
+                  onChange={(e) => setEmail(e.target.value)} 
+                  required 
+                  className="w-full pl-11 pr-4 py-3 bg-background border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-medium"
+                />
+              </div>
+            </div>
 
-        <p style={{ textAlign: 'center', marginTop: '24px', color: '#a1a1aa', fontSize: '14px' }}>
-          Don't have an account? <Link to="/register" style={{ color: '#3b82f6', fontWeight: '500', textDecoration: 'none' }}>Create one now</Link>
-        </p>
+            <div className="space-y-1.5">
+              <label className="text-sm font-semibold text-foreground px-1">Password</label>
+              <div className="relative">
+                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                <input 
+                  type="password" 
+                  placeholder="••••••••" 
+                  value={password} 
+                  onChange={(e) => setPassword(e.target.value)} 
+                  required 
+                  className="w-full pl-11 pr-4 py-3 bg-background border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-medium"
+                />
+              </div>
+            </div>
 
+            <div className="flex justify-end pt-1">
+              <Link to="/forgot-password" className="text-sm font-semibold text-primary hover:text-primary/80 transition-colors">
+                Forgot password?
+              </Link>
+            </div>
+
+            <Button 
+              type="submit" 
+              disabled={loading}
+              className="w-full py-6 rounded-xl text-base font-semibold shadow-md active:scale-[0.98] transition-all disabled:opacity-70"
+            >
+              {loading ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="w-5 h-5 animate-spin" /> Authenticating...
+                </span>
+              ) : 'Sign In'}
+            </Button>
+            
+          </form>
+
+          <p className="text-center mt-8 text-sm text-muted-foreground font-medium">
+            Don't have an account?{' '}
+            <Link to="/register" className="text-primary hover:text-primary/80 transition-colors hover:underline underline-offset-4">
+              Create one now
+            </Link>
+          </p>
+        </div>
       </div>
+
+      {/* Right Column: Premium Graphic */}
+      <div className="hidden lg:flex relative bg-muted overflow-hidden flex-col items-center justify-center p-12">
+        {/* Background Gradients */}
+        <div className="absolute top-0 right-0 -translate-y-12 translate-x-1/3 w-96 h-96 bg-primary/30 rounded-full blur-3xl opacity-50 mix-blend-multiply pointer-events-none"></div>
+        <div className="absolute bottom-0 left-0 translate-y-1/3 -translate-x-12 w-96 h-96 bg-secondary/30 rounded-full blur-3xl opacity-50 mix-blend-multiply pointer-events-none"></div>
+        
+        {/* Glassmorphic Panel Graphic */}
+        <div className="relative z-10 w-full max-w-lg glass-card rounded-2xl p-8 border border-white/10 shadow-2xl flex flex-col items-center text-center">
+          <div className="w-20 h-20 bg-background rounded-full flex items-center justify-center mb-6 shadow-sm border border-border">
+            <Activity className="w-10 h-10 text-primary" />
+          </div>
+          <h2 className="text-2xl font-bold text-foreground mb-4">Empowering Healthcare Providers</h2>
+          <p className="text-muted-foreground leading-relaxed">
+            Our state-of-the-art platform seamlessly connects patients, doctors, and administration to deliver high-quality patient care safely and efficiently.
+          </p>
+        </div>
+      </div>
+
     </div>
   );
 };

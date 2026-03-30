@@ -2,10 +2,15 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Pill, Calendar, UploadCloud, FileText, CheckCircle2, AlertCircle, Clock, Stethoscope, Briefcase, Download, MessageSquare, Send } from 'lucide-react';
 import html2canvas from 'html2canvas';
+import { getApiUrl } from '../lib/api';
 import jsPDF from 'jspdf';
+import { Card } from '../components/ui/card';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Select } from '../components/ui/select';
 
 const PatientDashboard = () => {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const [prescriptions, setPrescriptions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [reminders, setReminders] = useState<any[]>([]);
@@ -33,7 +38,6 @@ const PatientDashboard = () => {
   // Notification States
   const [hasPermission, setHasPermission] = useState(false);
 
-  // Request browser Notification permission on mount
   useEffect(() => {
     if ('Notification' in window) {
       Notification.requestPermission().then(permission => {
@@ -44,7 +48,7 @@ const PatientDashboard = () => {
 
   const fetchAppointments = async () => {
     try {
-      const res = await fetch('/api/patient/appointments', {
+      const res = await fetch(getApiUrl('/patient/appointments'), {
         headers: { Authorization: `Bearer ${user?.token}` }
       });
       if (res.ok) setAppointments(await res.json());
@@ -56,7 +60,7 @@ const PatientDashboard = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const pxRes = await fetch('/api/patient/prescriptions', {
+        const pxRes = await fetch(getApiUrl('/patient/prescriptions'), {
           headers: { Authorization: `Bearer ${user?.token}` }
         });
         if (pxRes.ok) {
@@ -81,7 +85,7 @@ const PatientDashboard = () => {
           setReminders(activeMeds);
         }
 
-        const docRes = await fetch('/api/users/doctors', {
+        const docRes = await fetch(getApiUrl('/users/doctors'), {
           headers: { Authorization: `Bearer ${user?.token}` }
         });
         if (docRes.ok) setDoctors(await docRes.json());
@@ -93,22 +97,15 @@ const PatientDashboard = () => {
       }
     };
     fetchData();
-    fetchAppointments(); // Fetch appointments on load
+    fetchAppointments();
   }, [user]);
 
-  // Robust Interval-based Reminder checker (runs every minute)
   useEffect(() => {
     if (reminders.length === 0) return;
 
     const intervalId = setInterval(() => {
       const now = new Date();
-      // Check exactly at the top of the hour for main dose times (e.g. 9am, 2pm, 8pm)
-      // This is simulated logic. Since we don't want to wait hours to test it, 
-      // let's assume if they have an active reminder for this TimeOfDay, we fire it once per session 
-      // or based on a specific exact minute. For robust safety, we check if the user hasn't been notified recently.
-
       const lastNotified = sessionStorage.getItem('lastNotificationFired');
-      // Fire if 1 hour has passed since last notification, or never fired
       if (!lastNotified || (now.getTime() - parseInt(lastNotified)) > 3600000) {
         
         let shouldFire = false;
@@ -117,11 +114,10 @@ const PatientDashboard = () => {
         if (timeOfDay === 'Night' && now.getHours() >= 20) shouldFire = true;
 
         if (shouldFire) {
-          // Play Medical Beep Alert
           const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
           const osc = ctx.createOscillator();
           osc.type = 'sine';
-          osc.frequency.setValueAtTime(880, ctx.currentTime); // High pitch typical medical beep
+          osc.frequency.setValueAtTime(880, ctx.currentTime);
           osc.connect(ctx.destination);
           osc.start();
           osc.stop(ctx.currentTime + 0.3);
@@ -134,9 +130,8 @@ const PatientDashboard = () => {
              osc2.stop(ctx.currentTime + 0.3);
           }, 400);
 
-          // Trigger Native Browser WebAPI Notification
           if (hasPermission) {
-            new Notification('Smart Hospital Reminder 🔔', {
+            new Notification('Smart Hospital Reminder \uD83D\uDD14', {
               body: `It is time to take your ${timeOfDay} medication: ${reminders.map(m => m.name).join(', ')}.`,
               icon: 'https://cdn-icons-png.flaticon.com/512/3004/3004458.png',
               requireInteraction: true
@@ -146,7 +141,7 @@ const PatientDashboard = () => {
           sessionStorage.setItem('lastNotificationFired', now.getTime().toString());
         }
       }
-    }, 60000); // Check every minute
+    }, 60000);
 
     return () => clearInterval(intervalId);
   }, [reminders, timeOfDay, hasPermission]);
@@ -158,7 +153,7 @@ const PatientDashboard = () => {
     formData.append('image', file);
 
     try {
-      const res = await fetch('/api/patient/upload-prescription', {
+      const res = await fetch(getApiUrl('/patient/upload-prescription'), {
         method: 'POST',
         headers: { Authorization: `Bearer ${user?.token}` },
         body: formData,
@@ -175,7 +170,7 @@ const PatientDashboard = () => {
   const handleBookAppointment = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch('/api/patient/appointments', {
+      const res = await fetch(getApiUrl('/patient/appointments'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${user?.token}` },
         body: JSON.stringify(bookData)
@@ -183,7 +178,7 @@ const PatientDashboard = () => {
       if (res.ok) {
         setBookingSuccess('Appointment Request Sent!');
         setBookData({ doctorId: '', date: '', time: '', reasonForVisit: '' });
-        fetchAppointments(); // Refresh the real-time list
+        fetchAppointments();
       }
     } catch (error) {
       console.error(error);
@@ -193,7 +188,7 @@ const PatientDashboard = () => {
   const loadChat = async () => {
     if (!chatDoctorId) return setChatMessages([]);
     try {
-      const res = await fetch(`/api/messages/${chatDoctorId}`, {
+      const res = await fetch(getApiUrl(`/messages/${chatDoctorId}`), {
         headers: { Authorization: `Bearer ${user?.token}` }
       });
       if (res.ok) setChatMessages(await res.json());
@@ -206,7 +201,7 @@ const PatientDashboard = () => {
     e.preventDefault();
     if (!chatInput.trim() || !chatDoctorId) return;
     try {
-      const res = await fetch('/api/messages', {
+      const res = await fetch(getApiUrl('/messages'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${user?.token}` },
         body: JSON.stringify({ receiverId: chatDoctorId, content: chatInput })
@@ -219,274 +214,354 @@ const PatientDashboard = () => {
   };
 
   return (
-    <div style={{ padding: '32px', minHeight: '100vh', backgroundColor: '#18181b', color: '#e4e4e7', fontFamily: "'Inter', sans-serif" }}>
-      
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px', maxWidth: '1200px', margin: '0 auto 32px' }}>
-        <div>
-          <h2 style={{ fontSize: '24px', fontWeight: '600', color: '#f4f4f5', margin: 0 }}>My Health Dashboard</h2>
-          <p style={{ color: '#a1a1aa', margin: '4px 0 0 0', fontSize: '14px' }}>Welcome back, {user?.firstName}!</p>
-        </div>
-        <button onClick={logout} style={{ padding: '8px 16px', background: 'transparent', border: '1px solid #3f3f46', color: '#a1a1aa', borderRadius: '6px', fontSize: '14px', cursor: 'pointer' }}>
-          Logout
-        </button>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight text-foreground">Welcome back, {user?.firstName}</h1>
+        <p className="text-muted-foreground mt-1">Here is a summary of your health and upcoming tasks.</p>
       </div>
 
-      <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-        
-        {/* Dynamic Reminder Banner */}
-        {reminders.length > 0 && (
-          <div style={{ padding: '20px', backgroundColor: '#3f2c2c', border: '1px solid #ef4444', borderRadius: '8px', display: 'flex', gap: '16px', alignItems: 'center' }}>
-            <div style={{ width: '48px', height: '48px', backgroundColor: '#ef444420', borderRadius: '50%', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-              <AlertCircle color="#ef4444" size={24} />
-            </div>
-            <div>
-              <h4 style={{ margin: '0 0 4px 0', color: '#f87171', fontSize: '18px' }}>Action Required: {timeOfDay} Medicine</h4>
-              <p style={{ margin: '0', color: '#fca5a5', fontSize: '14px' }}>
-                Please take: {reminders.map(m => `${m.name} (${m.dosage})`).join(', ')}
-              </p>
-            </div>
+      {reminders.length > 0 && (
+        <div className="bg-destructive/10 border border-destructive/30 rounded-2xl p-4 flex gap-4 items-center shadow-sm">
+          <div className="w-12 h-12 bg-destructive/10 rounded-full flex items-center justify-center shrink-0">
+            <AlertCircle className="w-6 h-6 text-destructive" />
           </div>
-        )}
-
-        {/* Top Row: Appointments & AI Upload */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-          
-          {/* Appointment Booking Module */}
-          <div style={{ backgroundColor: '#27272a', borderRadius: '12px', padding: '24px', border: '1px solid #3f3f46' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-              <div style={{ width: '40px', height: '40px', backgroundColor: '#eab308', borderRadius: '8px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                <Calendar size={20} color="white" />
-              </div>
-              <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#f4f4f5', margin: 0 }}>Book an Appointment</h3>
-            </div>
-            
-            {bookingSuccess && <div style={{ padding: '12px', backgroundColor: '#10b98120', color: '#10b981', border: '1px solid #10b981', borderRadius: '6px', marginBottom: '16px', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}><CheckCircle2 size={16} /> {bookingSuccess}</div>}
-
-            <form onSubmit={handleBookAppointment} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div>
-                <label style={{ color: '#a1a1aa', fontSize: '13px', display: 'block', marginBottom: '6px' }}><Stethoscope size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }}/> Choose Doctor</label>
-                <select value={bookData.doctorId} onChange={(e) => setBookData({...bookData, doctorId: e.target.value})} required style={{ width: '100%', padding: '12px', background: '#18181b', border: '1px solid #3f3f46', color: '#f4f4f5', borderRadius: '6px', outline: 'none' }}>
-                  <option value="">Select a Doctor from Network</option>
-                  {doctors.map(d => <option key={d._id} value={d._id}>Dr. {d.firstName} {d.lastName}</option>)}
-                </select>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                <div>
-                  <label style={{ color: '#a1a1aa', fontSize: '13px', display: 'block', marginBottom: '6px' }}><Calendar size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }}/> Date</label>
-                  <input type="date" value={bookData.date} onChange={(e) => setBookData({...bookData, date: e.target.value})} required style={{ width: '100%', padding: '10px 12px', background: '#18181b', border: '1px solid #3f3f46', color: '#f4f4f5', borderRadius: '6px', outline: 'none', WebkitAppearance: 'none' }} />
-                </div>
-                <div>
-                  <label style={{ color: '#a1a1aa', fontSize: '13px', display: 'block', marginBottom: '6px' }}><Clock size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }}/> Time</label>
-                  <input type="time" value={bookData.time} onChange={(e) => setBookData({...bookData, time: e.target.value})} required style={{ width: '100%', padding: '10px 12px', background: '#18181b', border: '1px solid #3f3f46', color: '#f4f4f5', borderRadius: '6px', outline: 'none', WebkitAppearance: 'none' }} />
-                </div>
-              </div>
-
-              <div>
-                <label style={{ color: '#a1a1aa', fontSize: '13px', display: 'block', marginBottom: '6px' }}><Briefcase size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }}/> Reason for Visit</label>
-                <input type="text" placeholder="e.g. Regular Checkup, Fever" value={bookData.reasonForVisit} onChange={(e) => setBookData({...bookData, reasonForVisit: e.target.value})} required style={{ width: '100%', padding: '12px', background: '#18181b', border: '1px solid #3f3f46', color: '#f4f4f5', borderRadius: '6px', outline: 'none' }} />
-              </div>
-
-              <button type="submit" style={{ width: '100%', padding: '12px', backgroundColor: '#eab308', color: '#18181b', border: 'none', borderRadius: '6px', fontWeight: '600', cursor: 'pointer', marginTop: '8px' }}>
-                Request Appointment
-              </button>
-            </form>
-          </div>
-
-          {/* New Mod: My Appointments List */}
-          <div style={{ backgroundColor: '#27272a', borderRadius: '12px', padding: '24px', border: '1px solid #3f3f46', gridColumn: '1 / -1' }}>
-            <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#f4f4f5', margin: '0 0 16px 0' }}>My Appointments</h3>
-            {appointments.length === 0 ? <p style={{ color: '#a1a1aa', fontSize: '14px' }}>You have no appointments scheduled.</p> : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
-                {appointments.map(app => (
-                  <div key={app._id} style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '16px', backgroundColor: '#18181b', borderRadius: '8px', border: '1px solid #3f3f46' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <span style={{ color: '#f4f4f5', fontWeight: '600', fontSize: '15px' }}>Dr. {app.doctor?.lastName}</span>
-                      <div style={{ padding: '4px 8px', border: `1px solid ${app.status === 'Approved' ? '#10b981' : app.status === 'Pending' ? '#eab308' : '#ef4444'}`, color: app.status === 'Approved' ? '#10b981' : app.status === 'Pending' ? '#eab308' : '#ef4444', backgroundColor: app.status === 'Approved' ? '#10b98120' : app.status === 'Pending' ? '#eab30820' : '#ef444420', borderRadius: '6px', fontSize: '11px', fontWeight: '600' }}>
-                        {app.status}
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', color: '#a1a1aa', fontSize: '13px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Calendar size={14} /> {new Date(app.date).toLocaleDateString()}</div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Clock size={14} /> {app.time}</div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Briefcase size={14} /> {app.reasonForVisit}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* OCR AI Upload Module */}
-          <div style={{ backgroundColor: '#27272a', borderRadius: '12px', padding: '24px', border: '1px solid #3f3f46' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-              <div style={{ width: '40px', height: '40px', backgroundColor: '#3b82f6', borderRadius: '8px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                <UploadCloud size={20} color="white" />
-              </div>
-              <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#f4f4f5', margin: 0 }}>Smart Upload</h3>
-            </div>
-            <p style={{ fontSize: '14px', color: '#a1a1aa', marginBottom: '20px', lineHeight: '1.6' }}>
-              Have a paper prescription? Upload it here and our AI will instantly digitize your medicines and timings.
+          <div>
+            <h4 className="text-destructive font-semibold text-lg m-0">Action Required: {timeOfDay} Medicine</h4>
+            <p className="text-destructive/80 text-sm m-0">
+              Please take: <span className="font-semibold">{reminders.map(m => `${m.name} (${m.dosage})`).join(', ')}</span>
             </p>
-            
-            <div style={{ border: '2px dashed #3f3f46', borderRadius: '8px', padding: '24px', textAlign: 'center', backgroundColor: '#18181b', transition: 'border-color 0.2s' }}>
-              <input 
-                type="file" 
-                onChange={(e) => setFile(e.target.files ? e.target.files[0] : null)} 
-                accept="image/*" 
-                style={{ color: '#a1a1aa', width: '100%', marginBottom: '16px' }} 
-              />
-              <button 
-                onClick={handleUpload} 
-                disabled={!file || uploading} 
-                style={{ width: '100%', padding: '12px', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '6px', fontWeight: '600', cursor: (file && !uploading) ? 'pointer' : 'not-allowed', opacity: (file && !uploading) ? 1 : 0.6 }}
-              >
-                {uploading ? 'Processing with AI...' : 'Digitize Prescription'}
-              </button>
-            </div>
-
-            {ocrText && (
-              <div style={{ marginTop: '20px', backgroundColor: '#18181b', padding: '16px', borderRadius: '8px', border: '1px solid #10b981' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-                  <CheckCircle2 size={16} color="#10b981" />
-                  <span style={{ color: '#10b981', fontWeight: '600', fontSize: '14px' }}>Successful AI Extraction</span>
-                </div>
-                <ul style={{ margin: 0, paddingLeft: '20px', color: '#e4e4e7', fontSize: '13px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  {ocrText.medicines.map((m: any, i: number) => (
-                    <li key={i}>{m.name} - {m.dosage} <strong>({m.timing})</strong></li>
-                  ))}
-                </ul>
-              </div>
-            )}
           </div>
         </div>
+      )}
 
-        {/* Digital Prescriptions List */}
-        <div style={{ backgroundColor: '#27272a', borderRadius: '12px', border: '1px solid #3f3f46', padding: '24px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <div style={{ width: '40px', height: '40px', backgroundColor: '#10b981', borderRadius: '8px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                <FileText size={20} color="white" />
-              </div>
-              <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#f4f4f5', margin: 0 }}>Active Prescriptions</h3>
-            </div>
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        
+        {/* Main Column */}
+        <div className="xl:col-span-2 space-y-6">
+          
+          {/* Top Row: Appointments & AI Upload */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '13px', color: '#a1a1aa' }}>Filter Date:</span>
-              <input 
-                type="date" 
-                value={filterDate} 
-                onChange={(e) => setFilterDate(e.target.value)} 
-                style={{ padding: '8px 12px', borderRadius: '6px', background: '#18181b', color: '#f4f4f5', border: '1px solid #3f3f46', outline: 'none', fontSize: '13px', WebkitAppearance: 'none' }} 
-              />
-              {filterDate && <button onClick={() => setFilterDate('')} style={{ background: 'transparent', border: 'none', color: '#ef4444', fontSize: '12px', cursor: 'pointer', fontWeight: '600' }}>Clear</button>}
-            </div>
-          </div>
+            {/* Appointment Booking Module */}
+            <Card className="glass-card shadow-sm border-none">
+              <div className="p-6">
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="p-2.5 bg-primary/10 rounded-xl">
+                    <Calendar className="w-5 h-5 text-primary" />
+                  </div>
+                  <h3 className="text-lg font-semibold m-0 text-foreground">Book Appointment</h3>
+                </div>
+                
+                {bookingSuccess && (
+                  <div className="p-3 bg-success/10 text-success border border-success/30 rounded-lg mb-5 text-sm flex items-center gap-2 font-medium">
+                    <CheckCircle2 size={16} /> {bookingSuccess}
+                  </div>
+                )}
 
-          {loading ? <p style={{ color: '#a1a1aa', fontSize: '14px' }}>Loading your records...</p> : 
-            prescriptions.length === 0 ? <p style={{ color: '#a1a1aa', fontSize: '14px' }}>You have no digital prescriptions issued yet.</p> : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '20px' }}>
-                {prescriptions.filter(px => filterDate ? new Date(px.createdAt).toISOString().split('T')[0] === filterDate : true).map((px) => (
-                  <div key={px._id} id={`px-${px._id}`} style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '20px', backgroundColor: '#18181b', borderRadius: '12px', border: '1px solid #3f3f46', position: 'relative' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '12px', borderBottom: '1px solid #3f3f46' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column' }}>
-                        <span style={{ color: '#10b981', fontSize: '11px', fontWeight: '700', letterSpacing: '1px' }}>RX-{px._id.substring(0, 8).toUpperCase()}</span>
-                        <span style={{ color: '#a1a1aa', fontSize: '14px', marginTop: '4px' }}>Dr. <strong style={{ color: '#f4f4f5' }}>{px.doctor?.lastName}</strong></span>
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <Calendar size={14} color="#a1a1aa" />
-                          <span style={{ color: '#a1a1aa', fontSize: '12px' }}>{new Date(px.createdAt).toLocaleDateString()}</span>
-                        </div>
-                        <button 
-                          onClick={async () => {
-                            const element = document.getElementById(`px-${px._id}`);
-                            if(element) {
-                              const canvas = await html2canvas(element, { backgroundColor: '#18181b' });
-                              const pdf = new jsPDF('p', 'mm', 'a5');
-                              pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 10, 10, 130, (canvas.height * 130) / canvas.width);
-                              pdf.save(`Prescription_RX-${px._id.substring(0, 8).toUpperCase()}.pdf`);
-                            }
-                          }}
-                          style={{ background: 'transparent', border: 'none', color: '#3b82f6', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', fontWeight: '600' }}
-                        >
-                          <Download size={14} /> Download PDF
-                        </button>
-                      </div>
+                <form onSubmit={handleBookAppointment} className="space-y-4">
+                  <div>
+                    <Select 
+                      label="Choose Doctor"
+                      value={bookData.doctorId} 
+                      onChange={(e) => setBookData({...bookData, doctorId: e.target.value})} 
+                      options={[{ value: '', label: 'Select a Doctor from Network' }, ...doctors.map(d => ({ value: d._id, label: `Dr. ${d.firstName} ${d.lastName}` }))]}
+                      required
+                      className="bg-background shadow-sm"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Input 
+                        label="Date"
+                        type="date" 
+                        value={bookData.date} 
+                        onChange={(e) => setBookData({...bookData, date: e.target.value})} 
+                        required 
+                        className="bg-background shadow-sm"
+                      />
                     </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '8px' }}>
-                      {px.medicines.map((med: any, idx: number) => (
-                        <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                            <Pill size={16} color="#3b82f6" />
-                            <div style={{ display: 'flex', flexDirection: 'column' }}>
-                              <span style={{ color: '#f4f4f5', fontSize: '14px', fontWeight: '500' }}>{med.name}</span>
-                              <span style={{ color: '#a1a1aa', fontSize: '12px' }}>{med.foodInstructions}</span>
-                            </div>
-                          </div>
-                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
-                            <span style={{ color: '#10b981', fontSize: '13px', fontWeight: '600' }}>{med.dosage}</span>
-                            <div style={{ padding: '2px 8px', backgroundColor: '#3f3f46', borderRadius: '4px', fontSize: '10px', color: '#e4e4e7', fontWeight: '600' }}>
-                              {med.timing}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
+                    <div>
+                      <Input 
+                        label="Time"
+                        type="time" 
+                        value={bookData.time} 
+                        onChange={(e) => setBookData({...bookData, time: e.target.value})} 
+                        required 
+                        className="bg-background shadow-sm"
+                      />
                     </div>
                   </div>
-                ))}
-              </div>
-          )}
-        </div>
 
-        {/* Secure Messaging Module */}
-        <div style={{ backgroundColor: '#27272a', borderRadius: '12px', padding: '24px', border: '1px solid #3f3f46', gridColumn: '1 / -1', display: 'flex', gap: '24px', height: '400px' }}>
-          <div style={{ flex: '0 0 250px', borderRight: '1px solid #3f3f46', paddingRight: '24px', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
-              <MessageSquare size={20} color="#3b82f6" />
-              <h3 style={{ fontSize: '16px', fontWeight: '600', color: '#f4f4f5', margin: 0 }}>Network Chat</h3>
-            </div>
-            <p style={{ color: '#a1a1aa', fontSize: '13px', marginBottom: '16px' }}>Directly message your network doctors.</p>
-            
-            <select value={chatDoctorId} onChange={(e) => setChatDoctorId(e.target.value)} style={{ padding: '12px', background: '#18181b', border: '1px solid #3f3f46', borderRadius: '6px', color: '#f4f4f5', outline: 'none', fontSize: '13px' }}>
-              <option value="">Select Doctor...</option>
-              {doctors.map(d => <option key={d._id} value={d._id}>Dr. {d.firstName} {d.lastName}</option>)}
-            </select>
-          </div>
-          
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', paddingLeft: '8px' }}>
-            {!chatDoctorId ? (
-              <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', color: '#a1a1aa', fontSize: '14px' }}>
-                Select a doctor to start a secure conversation.
+                  <div>
+                    <Input 
+                      label="Reason for Visit"
+                      placeholder="e.g. Regular Checkup, Fever" 
+                      value={bookData.reasonForVisit} 
+                      onChange={(e) => setBookData({...bookData, reasonForVisit: e.target.value})} 
+                      required 
+                      className="bg-background shadow-sm"
+                    />
+                  </div>
+
+                  <Button type="submit" className="w-full mt-2" size="lg">
+                    Request Appointment
+                  </Button>
+                </form>
               </div>
-            ) : (
-              <>
-                <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px', paddingBottom: '16px' }}>
-                  {chatMessages.length === 0 ? <p style={{ color: '#a1a1aa', fontSize: '13px', textAlign: 'center', marginTop: 'auto', marginBottom: 'auto' }}>No messages yet. Say hello!</p> : chatMessages.map((msg, i) => {
-                    const isMe = msg.sender === user?._id;
-                    return (
-                      <div key={i} style={{ display: 'flex', justifyContent: isMe ? 'flex-end' : 'flex-start' }}>
-                        <div style={{ maxWidth: '70%', padding: '12px 16px', borderRadius: isMe ? '12px 12px 0 12px' : '12px 12px 12px 0', backgroundColor: isMe ? '#3b82f6' : '#3f3f46', color: isMe ? '#ffffff' : '#e4e4e7', fontSize: '14px', lineHeight: '1.5' }}>
-                          {msg.content}
-                          <div style={{ fontSize: '10px', color: isMe ? '#bfdbfe' : '#a1a1aa', marginTop: '4px', textAlign: 'right' }}>
-                            {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </Card>
+
+            {/* OCR AI Upload Module */}
+            <Card className="glass-card shadow-sm border-none">
+              <div className="p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2.5 bg-primary/10 rounded-xl">
+                    <UploadCloud className="w-5 h-5 text-primary" />
+                  </div>
+                  <h3 className="text-lg font-semibold m-0 text-foreground">Smart Upload</h3>
+                </div>
+                <p className="text-sm text-muted-foreground mb-5 leading-relaxed">
+                  Have a paper prescription? Upload it here and our AI will instantly digitize your medicines and timings.
+                </p>
+                
+                <div className="border-2 border-dashed border-border hover:border-primary/50 transition-colors rounded-xl p-6 text-center bg-background/50 group">
+                  <input 
+                    type="file" 
+                    onChange={(e) => setFile(e.target.files ? e.target.files[0] : null)} 
+                    accept="image/*" 
+                    className="w-full text-muted-foreground mb-4 text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20 cursor-pointer"
+                  />
+                  <Button 
+                    onClick={handleUpload} 
+                    disabled={!file || uploading} 
+                    className="w-full shadow-sm"
+                    variant={file && !uploading ? 'primary' : 'secondary'}
+                  >
+                    {uploading ? 'Processing with AI...' : 'Digitize Prescription'}
+                  </Button>
+                </div>
+
+                {ocrText && (
+                  <div className="mt-5 bg-background shadow-sm p-4 rounded-xl border border-success/30">
+                    <div className="flex items-center gap-2 mb-3">
+                      <CheckCircle2 size={16} className="text-success" />
+                      <span className="text-success font-semibold text-sm">Successful AI Extraction</span>
+                    </div>
+                    <ul className="m-0 pl-5 text-foreground text-sm space-y-1.5 list-disc marker:text-success/50">
+                      {ocrText.medicines.map((m: any, i: number) => (
+                        <li key={i}>{m.name} - {m.dosage} <strong className="text-muted-foreground ml-1">({m.timing})</strong></li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </Card>
+          </div>
+
+          {/* My Appointments List */}
+          <Card className="glass-card shadow-sm border-none overflow-hidden">
+            <div className="p-6 pb-4 border-b border-border/50 bg-muted/20">
+              <h3 className="text-xl font-semibold m-0 text-foreground flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-primary"/> My Appointments
+              </h3>
+            </div>
+            <div className="p-6">
+              {appointments.length === 0 ? (
+                <div className="p-6 text-center text-muted-foreground bg-background rounded-xl border border-dashed text-sm">
+                  You have no appointments scheduled.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {appointments.map(app => (
+                    <div key={app._id} className="flex flex-col gap-3 p-4 bg-background rounded-2xl border border-border/60 hover:shadow-md transition-all">
+                      <div className="flex justify-between items-start">
+                        <span className="font-semibold text-[15px] text-foreground">Dr. {app.doctor?.lastName}</span>
+                        <span className={`px-3 py-1 text-xs font-semibold rounded-full ${app.status === 'Approved' ? 'bg-success/15 text-success' : app.status === 'Pending' ? 'bg-warning/15 text-warning' : 'bg-error/15 text-error'}`}>
+                          {app.status}
+                        </span>
+                      </div>
+                      <div className="flex flex-col gap-2 text-muted-foreground text-[13px] font-medium">
+                        <div className="flex items-center gap-2"><Calendar size={14} className="text-primary/70"/> {new Date(app.date).toLocaleDateString()}</div>
+                        <div className="flex items-center gap-2"><Clock size={14} className="text-primary/70"/> {app.time}</div>
+                        <div className="flex items-center gap-2"><Briefcase size={14} className="text-primary/70"/> {app.reasonForVisit}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </Card>
+
+          {/* Digital Prescriptions List */}
+          <Card className="glass-card shadow-sm border-none overflow-hidden">
+            <div className="p-6 pb-4 border-b border-border/50 bg-muted/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-primary/10 rounded-xl">
+                  <FileText className="w-5 h-5 text-primary" />
+                </div>
+                <h3 className="text-xl font-semibold m-0 text-foreground">Active Prescriptions</h3>
+              </div>
+              
+              <div className="flex items-center gap-2 bg-background p-1.5 rounded-lg border shadow-sm w-fit">
+                <span className="text-xs text-muted-foreground px-2 font-medium">Filter:</span>
+                <input 
+                  type="date" 
+                  value={filterDate} 
+                  onChange={(e) => setFilterDate(e.target.value)} 
+                  className="bg-transparent border-none text-xs text-foreground focus:outline-none focus:ring-0" 
+                />
+                {filterDate && <Button variant="ghost" size="sm" onClick={() => setFilterDate('')} className="h-6 px-2 text-xs text-error hover:text-error hover:bg-error/10">Clear</Button>}
+              </div>
+            </div>
+
+            <div className="p-6">
+              {loading ? (
+                <div className="p-6 text-center text-muted-foreground animate-pulse text-sm">Loading your records...</div>
+              ) : prescriptions.length === 0 ? (
+                <div className="p-6 text-center text-muted-foreground bg-background rounded-xl border border-dashed text-sm">
+                  You have no digital prescriptions issued yet.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  {prescriptions.filter(px => filterDate ? new Date(px.createdAt).toISOString().split('T')[0] === filterDate : true).map((px) => (
+                    <div key={px._id} id={`px-${px._id}`} className="flex flex-col gap-3 p-5 bg-background rounded-2xl border border-border/60 hover:shadow-md transition-shadow relative">
+                      <div className="flex items-center justify-between pb-4 border-b border-border/60">
+                        <div className="flex flex-col gap-1">
+                          <span className="text-primary text-[10px] font-bold tracking-widest uppercase bg-primary/10 w-fit px-2 py-0.5 rounded-full">RX-{px._id.substring(0, 8)}</span>
+                          <span className="text-sm text-foreground font-semibold mt-1">Dr. {px.doctor?.lastName}</span>
+                        </div>
+                        <div className="flex flex-col items-end gap-2">
+                          <div className="flex items-center gap-1.5 text-muted-foreground text-xs font-medium">
+                            <Calendar size={12} /> {new Date(px.createdAt).toLocaleDateString()}
                           </div>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            className="h-7 px-2 text-xs text-primary hover:text-primary hover:bg-primary/10"
+                            onClick={async () => {
+                              const element = document.getElementById(`px-${px._id}`);
+                              if(element) {
+                                const canvas = await html2canvas(element, { backgroundColor: getComputedStyle(document.body).getPropertyValue('--background') || '#ffffff' });
+                                const pdf = new jsPDF('p', 'mm', 'a5');
+                                pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 10, 10, 130, (canvas.height * 130) / canvas.width);
+                                pdf.save(`Prescription_RX-${px._id.substring(0, 8).toUpperCase()}.pdf`);
+                              }
+                            }}
+                          >
+                            <Download size={14} className="mr-1.5" /> Save PDF
+                          </Button>
                         </div>
                       </div>
-                    );
-                  })}
+
+                      <div className="flex flex-col gap-3 mt-1">
+                        {px.medicines.map((med: any, idx: number) => (
+                          <div key={idx} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/30 transition-colors">
+                            <div className="flex items-center gap-3">
+                              <div className="p-1.5 bg-primary/10 rounded-md">
+                                <Pill size={16} className="text-primary" />
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="text-sm font-semibold text-foreground leading-tight">{med.name}</span>
+                                <span className="text-[11px] text-muted-foreground mt-0.5">{med.foodInstructions}</span>
+                              </div>
+                            </div>
+                            <div className="flex flex-col items-end gap-1">
+                              <span className="text-[13px] font-bold text-foreground">{med.dosage}</span>
+                              <span className="px-2 py-0.5 bg-muted rounded text-[10px] font-semibold text-muted-foreground tracking-wide">
+                                {med.timing}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <form onSubmit={handleSendMessage} style={{ display: 'flex', gap: '12px', marginTop: 'auto' }}>
-                  <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder="Type a secure message..." style={{ flex: 1, padding: '12px 16px', background: '#18181b', border: '1px solid #3f3f46', borderRadius: '8px', color: '#f4f4f5', outline: 'none' }} />
-                  <button type="submit" disabled={!chatInput.trim()} style={{ padding: '12px', backgroundColor: chatInput.trim() ? '#3b82f6' : '#3f3f46', color: 'white', border: 'none', borderRadius: '8px', cursor: chatInput.trim() ? 'pointer' : 'not-allowed', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                    <Send size={18} />
-                  </button>
-                </form>
-              </>
-            )}
-          </div>
+              )}
+            </div>
+          </Card>
+        </div>
+
+        {/* Side Column - Chat Module */}
+        <div className="xl:col-span-1">
+          <Card className="glass-card border-none shadow-sm flex flex-col h-[750px] sticky top-24 overflow-hidden">
+            <div className="p-5 border-b border-border/50 bg-muted/20">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-primary/10 rounded-xl">
+                  <MessageSquare size={20} className="text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg text-foreground">Care Network Chat</h3>
+                  <p className="text-xs text-muted-foreground font-medium">Message your doctors directly</p>
+                </div>
+              </div>
+              
+              <div className="mt-5">
+                <Select 
+                  value={chatDoctorId} 
+                  onChange={(e) => setChatDoctorId(e.target.value)} 
+                  options={[{ value: '', label: 'Select connection...' }, ...doctors.map(d => ({ value: d._id, label: `Dr. ${d.firstName} ${d.lastName}` }))]}
+                  className="bg-background shadow-sm"
+                />
+              </div>
+            </div>
+            
+            <div className="flex-1 flex flex-col min-h-0 bg-background/30 pb-4">
+              {!chatDoctorId ? (
+                <div className="flex-1 flex flex-col justify-center items-center p-6 text-center text-sm text-muted-foreground gap-3">
+                  <Stethoscope className="w-12 h-12 text-muted-foreground/30" />
+                  Select a doctor above to start <br/> a secure conversation.
+                </div>
+              ) : (
+                <>
+                  <div className="flex-1 overflow-y-auto p-4 space-y-4 flex flex-col custom-scrollbar">
+                    {chatMessages.length === 0 ? (
+                      <div className="m-auto text-center">
+                        <MessageSquare className="w-10 h-10 mx-auto text-muted-foreground/20 mb-3" />
+                        <p className="text-sm text-muted-foreground font-medium">It's quiet here. Say hello!</p>
+                      </div>
+                    ) : chatMessages.map((msg, i) => {
+                      const isMe = msg.sender === user?._id;
+                      return (
+                        <div key={i} className={`flex ${isMe ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
+                          <div className={`max-w-[85%] px-4 py-3 text-[14.5px] shadow-sm ${
+                            isMe 
+                              ? 'bg-primary text-primary-foreground rounded-2xl rounded-tr-sm' 
+                              : 'bg-surface border border-border text-foreground rounded-2xl rounded-tl-sm'
+                          }`}>
+                            <p className="leading-relaxed">{msg.content}</p>
+                            <div className={`text-[10px] font-semibold mt-1.5 ${isMe ? 'text-primary-foreground/70 text-right' : 'text-muted-foreground/80'}`}>
+                              {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  
+                  <div className="px-4 mt-auto pt-2">
+                    <form onSubmit={handleSendMessage} className="flex items-center gap-2 bg-surface p-1.5 rounded-full border border-border shadow-soft focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/20 transition-all">
+                      <input 
+                        type="text" 
+                        value={chatInput} 
+                        onChange={(e) => setChatInput(e.target.value)} 
+                        placeholder="Type a secure message..." 
+                        className="flex-1 bg-transparent border-none text-[15px] px-5 py-2 focus:outline-none placeholder:text-muted-foreground/70" 
+                      />
+                      <Button 
+                        type="submit" 
+                        size="sm" 
+                        disabled={!chatInput.trim()} 
+                        className="rounded-full h-10 w-10 p-0 shrink-0 bg-primary hover:bg-primary/90 text-primary-foreground transition-all duration-200"
+                      >
+                        <Send size={16} className={chatInput.trim() ? 'translate-x-0.5' : 'opacity-70'} />
+                      </Button>
+                    </form>
+                  </div>
+                </>
+              )}
+            </div>
+          </Card>
         </div>
 
       </div>

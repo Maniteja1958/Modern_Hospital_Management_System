@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Lock, ShieldCheck } from 'lucide-react';
+import { getApiUrl } from '../lib/api';
 
 const ResetPassword = () => {
   const [newPassword, setNewPassword] = useState('');
@@ -29,7 +30,7 @@ const ResetPassword = () => {
     setLoading(true);
 
     try {
-      const res = await fetch('/api/auth/reset-password', {
+      const res = await fetch(getApiUrl('/auth/reset-password'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ resetToken: token, newPassword }),

@@ -7,6 +7,8 @@ import DoctorDashboard from './pages/DoctorDashboard';
 import PatientDashboard from './pages/PatientDashboard';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import Workflow from './pages/Workflow';
+import DashboardLayout from './layouts/DashboardLayout';
 import './App.css';
 
 function App() {
@@ -20,17 +22,46 @@ function App() {
       
       <Route 
         path="/dashboard/admin" 
-        element={<ProtectedRoute allowedRoles={['Admin']}><AdminDashboard /></ProtectedRoute>} 
+        element={
+          <ProtectedRoute allowedRoles={['Admin']}>
+            <DashboardLayout>
+              <AdminDashboard />
+            </DashboardLayout>
+          </ProtectedRoute>
+        } 
       />
       
       <Route 
         path="/dashboard/doctor" 
-        element={<ProtectedRoute allowedRoles={['Doctor']}><DoctorDashboard /></ProtectedRoute>} 
+        element={
+          <ProtectedRoute allowedRoles={['Doctor']}>
+            <DashboardLayout>
+              <DoctorDashboard />
+            </DashboardLayout>
+          </ProtectedRoute>
+        } 
       />
       
       <Route 
         path="/dashboard/patient" 
-        element={<ProtectedRoute allowedRoles={['Patient']}><PatientDashboard /></ProtectedRoute>} 
+        element={
+          <ProtectedRoute allowedRoles={['Patient']}>
+            <DashboardLayout>
+              <PatientDashboard />
+            </DashboardLayout>
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path="/dashboard/workflow" 
+        element={
+          <ProtectedRoute allowedRoles={['Patient', 'Doctor', 'Admin']}>
+            <DashboardLayout>
+              <Workflow />
+            </DashboardLayout>
+          </ProtectedRoute>
+        } 
       />
     </Routes>
   );
