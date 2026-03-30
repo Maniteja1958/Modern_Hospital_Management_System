@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const path = require('path');
 
 const connectDB = require('./config/db');
 const authRoutes = require('./routes/authRoutes');
@@ -37,6 +38,17 @@ app.use('/api/messages', messageRoutes);
 app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'success', message: 'Backend is running correctly.' });
 });
+
+// Serve Frontend in Production
+if (process.env.NODE_ENV === 'production') {
+  // Set static folder
+  app.use(express.static(path.join(__dirname, '../dist')));
+
+  // Any route that is not '/api' will be routed to the React app
+  app.get('*', (req, res) => {
+    res.sendFile(path.resolve(__dirname, '../dist', 'index.html'));
+  });
+}
 
 const PORT = process.env.PORT || 5000;
 
