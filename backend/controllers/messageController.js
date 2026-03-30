@@ -11,6 +11,12 @@ const sendMessage = async (req, res) => {
       receiver: receiverId,
       content
     });
+
+    const io = req.app.get('io');
+    if (io) {
+      io.to(receiverId.toString()).emit('message received', message);
+    }
+
     res.status(201).json(message);
   } catch (error) {
     res.status(500).json({ message: error.message });

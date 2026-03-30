@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Pill, Calendar, UploadCloud, FileText, CheckCircle2, AlertCircle, Clock, Stethoscope, Briefcase, Download, MessageSquare, Send } from 'lucide-react';
 import html2canvas from 'html2canvas';
@@ -8,6 +8,7 @@ import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Select } from '../components/ui/select';
+import { io } from 'socket.io-client';
 
 const PatientDashboard = () => {
   const { user } = useAuth();
@@ -195,7 +196,29 @@ const PatientDashboard = () => {
     } catch (e) { console.error(e); }
   };
 
+  const activeChatRef = useRef(chatDoctorId);
+  useEffect(() => { activeChatRef.current = chatDoctorId; }, [chatDoctorId]);
+
   useEffect(() => { loadChat(); }, [chatDoctorId]);
+
+  useEffect(() => {
+    if (!user) return;
+    const backendUrl = import.meta.env.VITE_API_URL?.replace(/\/api$/, '') || window.location.origin;
+    const socket = io(backendUrl);
+    
+    socket.emit('setup', user._id);
+
+    socket.on('message received', (newMessage: any) => {
+      setChatMessages((prev) => {
+        if (newMessage.sender === activeChatRef.current || newMessage.receiver === activeChatRef.current) {
+          return [...prev, newMessage];
+        }
+        return prev;
+      });
+    });
+
+    return () => { socket.disconnect(); };
+  }, [user]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -208,7 +231,8 @@ const PatientDashboard = () => {
       });
       if (res.ok) {
         setChatInput('');
-        loadChat();
+        const savedMessage = await res.json();
+        setChatMessages((prev) => [...prev, savedMessage]);
       }
     } catch (e) { console.error(e); }
   };
